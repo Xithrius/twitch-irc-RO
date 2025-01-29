@@ -46,14 +46,14 @@ static WINDOW_SIZE_TOO_SMALL_ERROR: Lazy<Vec<&'static str>> = Lazy::new(|| {
     ]
 });
 
-pub trait Component {
+pub trait Component<T> {
     #[allow(unused_variables)]
     fn draw(&mut self, f: &mut Frame, area: Option<Rect>) {
         todo!()
     }
 
     #[allow(clippy::unused_async)]
-    async fn event(&mut self, event: &Event) -> Option<TerminalAction> {
+    async fn event(&mut self, event: &Event) -> Option<TerminalAction<T>> {
         if let Event::Input(key) = event {
             match key {
                 Key::Char('q') => return Some(TerminalAction::Quit),

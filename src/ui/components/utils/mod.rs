@@ -8,4 +8,4 @@ pub use input_widget::{
     InputWidget,
 };
 pub use popups::centered_rect;
-pub use search_widget::{SearchItemGetter, SearchWidget};
+pub use search_widget::{SearchItemGetter, SearchWidget, ToQueryString};

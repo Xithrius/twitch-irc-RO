@@ -24,6 +24,7 @@ use crate::{
         },
     },
     terminal::TerminalAction,
+    twitch::TwitchAction,
     ui::components::{
         following::FollowingWidget, ChannelSwitcherWidget, ChatInputWidget, Component,
         MessageSearchWidget,
@@ -164,7 +165,7 @@ impl ChatWidget {
     }
 }
 
-impl Component for ChatWidget {
+impl Component<TwitchAction> for ChatWidget {
     fn draw(&mut self, f: &mut Frame, area: Option<Rect>) {
         let r = area.map_or_else(|| f.area(), |a| a);
 
@@ -289,7 +290,7 @@ impl Component for ChatWidget {
         }
     }
 
-    async fn event(&mut self, event: &Event) -> Option<TerminalAction> {
+    async fn event(&mut self, event: &Event) -> Option<TerminalAction<TwitchAction>> {
         if let Event::Input(key) = event {
             let limit =
                 self.scroll_offset.get_offset() < self.messages.borrow().len().saturating_sub(1);
@@ -299,7 +300,13 @@ impl Component for ChatWidget {
             } else if self.channel_input.is_focused() {
                 self.channel_input.event(event).await
             } else if self.search_input.is_focused() {
-                self.search_input.event(event).await
+                // WARN:
+                // Currently `search_input` will never return a TwitchAction.
+                // If for some reason it does, it will be forced to a `Join("")`
+                self.search_input
+                    .event(event)
+                    .await
+                    .map(|ta| ta.map_enter(|_| TwitchAction::Join("".into())))
             } else if self.following.is_focused() {
                 self.following.event(event).await
             } else {

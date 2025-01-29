@@ -16,12 +16,24 @@ use crate::{
     utils::emotes::emotes_enabled,
 };
 
-pub enum TerminalAction {
+pub enum TerminalAction<T> {
     Quit,
     BackOneLayer,
     SwitchState(State),
     ClearMessages,
-    Enter(TwitchAction),
+    Enter(T),
+}
+
+impl<T> TerminalAction<T> {
+    pub fn map_enter<B, F: Fn(&T) -> B>(&self, a_map: F) -> TerminalAction<B> {
+        match self {
+            TerminalAction::Quit => TerminalAction::Quit,
+            TerminalAction::BackOneLayer => TerminalAction::BackOneLayer,
+            TerminalAction::SwitchState(s) => TerminalAction::SwitchState(*s),
+            TerminalAction::ClearMessages => TerminalAction::ClearMessages,
+            TerminalAction::Enter(a) => TerminalAction::Enter(a_map(a)),
+        }
+    }
 }
 
 pub async fn ui_driver(
@@ -181,10 +193,16 @@ pub async fn ui_driver(
                             app.emotes.unload();
 
                             tx.send(TwitchAction::Join(channel.clone())).unwrap();
+
+                            if config.frontend.auto_start_streamlink {
+                                app.open_stream(channel.as_str());
+                            }
+
                             erx = query_emotes(&config, channel);
 
                             app.set_state(State::Normal);
                         }
+
                         TwitchAction::ClearMessages => {}
                     },
                 }

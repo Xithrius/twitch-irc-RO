@@ -5,7 +5,10 @@ use tui::{layout::Rect, Frame};
 use crate::{
     handlers::{config::SharedCompleteConfig, user_input::events::Event},
     terminal::TerminalAction,
-    twitch::{channels::Following, TwitchAction},
+    twitch::{
+        channels::{Following, FollowingStreaming, FollowingUser, StreamingUser},
+        TwitchAction,
+    },
     ui::components::Component,
 };
 
@@ -22,21 +25,36 @@ static INCORRECT_SCOPES_ERROR_MESSAGE: Lazy<Vec<&'static str>> = Lazy::new(|| {
     ]
 });
 
+type SearchFollowingStreamingWidget = SearchWidget<StreamingUser, FollowingStreaming>;
+type SearchFollowingWidget = SearchWidget<FollowingUser, Following>;
+
+pub enum SearchWidgetType {
+    All(SearchFollowingWidget),
+    Live(SearchFollowingStreamingWidget),
+}
+
 pub struct FollowingWidget {
     #[allow(dead_code)]
     config: SharedCompleteConfig,
-    pub search_widget: SearchWidget<String, Following>,
+    pub search_widget: SearchWidgetType,
+    // pub search_widget: SearchWidget<String, Following>,
 }
 
 impl FollowingWidget {
     pub fn new(config: SharedCompleteConfig) -> Self {
-        let item_getter = Following::new(config.borrow().twitch.clone());
-
-        let search_widget = SearchWidget::new(
-            config.clone(),
-            item_getter,
-            INCORRECT_SCOPES_ERROR_MESSAGE.to_vec(),
-        );
+        let search_widget = if config.borrow().frontend.only_show_live_channels {
+            SearchWidgetType::Live(SearchWidget::new(
+                config.clone(),
+                FollowingStreaming::new(config.borrow().twitch.clone()),
+                INCORRECT_SCOPES_ERROR_MESSAGE.to_vec(),
+            ))
+        } else {
+            SearchWidgetType::All(SearchWidget::new(
+                config.clone(),
+                Following::new(config.borrow().twitch.clone()),
+                INCORRECT_SCOPES_ERROR_MESSAGE.to_vec(),
+            ))
+        };
 
         Self {
             config,
@@ -45,24 +63,50 @@ impl FollowingWidget {
     }
 
     pub const fn is_focused(&self) -> bool {
-        self.search_widget.is_focused()
+        match &self.search_widget {
+            SearchWidgetType::All(w) => w.is_focused(),
+            SearchWidgetType::Live(w) => w.is_focused(),
+        }
     }
 
     pub async fn toggle_focus(&mut self) {
-        self.search_widget.toggle_focus().await;
+        match &mut self.search_widget {
+            SearchWidgetType::All(w) => w.toggle_focus().await,
+            SearchWidgetType::Live(w) => w.toggle_focus().await,
+        }
     }
 }
 
-impl Component for FollowingWidget {
+impl Component<TwitchAction> for FollowingWidget {
     fn draw(&mut self, f: &mut Frame, area: Option<Rect>) {
-        self.search_widget.draw(f, area);
+        match &mut self.search_widget {
+            SearchWidgetType::All(w) => w.draw(f, area),
+            SearchWidgetType::Live(w) => w.draw(f, area),
+        }
     }
 
-    async fn event(&mut self, event: &Event) -> Option<TerminalAction> {
-        let action = self.search_widget.event(event).await;
+    async fn event(&mut self, event: &Event) -> Option<TerminalAction<TwitchAction>> {
+        let w_event = match &mut self.search_widget {
+            SearchWidgetType::All(w) => w
+                .event(event)
+                .await
+                .map(|ta| ta.map_enter(|a| a.broadcaster_name.clone())),
+            SearchWidgetType::Live(w) => w
+                .event(event)
+                .await
+                .map(|ta| ta.map_enter(|a| a.user_login.clone())),
+        };
+
+        let action = w_event.map(|ta| match ta {
+            TerminalAction::Enter(s) => TerminalAction::Enter(TwitchAction::Join(s)),
+            TerminalAction::Quit => TerminalAction::Quit,
+            TerminalAction::BackOneLayer => TerminalAction::BackOneLayer,
+            TerminalAction::SwitchState(s) => TerminalAction::SwitchState(s),
+            TerminalAction::ClearMessages => TerminalAction::ClearMessages,
+        });
 
         if let Some(TerminalAction::Enter(TwitchAction::Join(channel))) = &action {
-            self.config.borrow_mut().twitch.channel.clone_from(channel);
+            self.config.borrow_mut().twitch.channel.clone_from(&channel);
         }
 
         action

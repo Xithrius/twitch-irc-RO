@@ -99,7 +99,7 @@ impl Display for ChatInputWidget {
     }
 }
 
-impl Component for ChatInputWidget {
+impl Component<TwitchAction> for ChatInputWidget {
     fn draw(&mut self, f: &mut Frame, area: Option<Rect>) {
         self.input.draw(f, area);
 
@@ -108,7 +108,7 @@ impl Component for ChatInputWidget {
         }
     }
 
-    async fn event(&mut self, event: &Event) -> Option<TerminalAction> {
+    async fn event(&mut self, event: &Event) -> Option<TerminalAction<TwitchAction>> {
         if self.emote_picker.is_focused() {
             if let Some(TerminalAction::Enter(TwitchAction::Privmsg(emote))) =
                 self.emote_picker.event(event).await
