@@ -1,4 +1,9 @@
-use std::{cell::RefCell, collections::VecDeque, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::VecDeque,
+    process::{Child, Stdio},
+    rc::Rc,
+};
 
 use chrono::{DateTime, Local};
 use rustyline::line_buffer::LineBuffer;
@@ -18,6 +23,7 @@ use crate::{
         user_input::events::{Event, Key},
     },
     terminal::TerminalAction,
+    twitch::TwitchAction,
     ui::{
         components::{Component, Components},
         statics::LINE_BUFFER_CAPACITY,
@@ -50,6 +56,10 @@ pub struct App {
     pub theme: Theme,
     /// Emotes
     pub emotes: SharedEmotes,
+    /// Running stream.
+    // TODO:
+    // Review if this needs to be a `Rc<RefCell>`. I haven't bothered to check
+    pub running_stream: Rc<RefCell<Option<Child>>>,
 }
 
 macro_rules! shared {
@@ -93,6 +103,7 @@ impl App {
         Self {
             components,
             config: shared_config.clone(),
+            running_stream: shared!(None),
             messages,
             storage,
             filters,
@@ -143,10 +154,15 @@ impl App {
         }
     }
 
-    pub async fn event(&mut self, event: &Event) -> Option<TerminalAction> {
+    pub async fn event(&mut self, event: &Event) -> Option<TerminalAction<TwitchAction>> {
         if let Event::Input(key) = event {
             if self.components.debug.is_focused() {
-                return self.components.debug.event(event).await;
+                return self
+                    .components
+                    .debug
+                    .event(event)
+                    .await
+                    .map(|ta| ta.map_enter(|()| TwitchAction::Join("".into())));
             }
 
             match key {
@@ -158,7 +174,12 @@ impl App {
                     return match self.state {
                         State::Dashboard => self.components.dashboard.event(event).await,
                         State::Normal => self.components.chat.event(event).await,
-                        State::Help => self.components.help.event(event).await,
+                        State::Help => self
+                            .components
+                            .help
+                            .event(event)
+                            .await
+                            .map(|ta| ta.map_enter(|()| TwitchAction::Join("".into()))),
                     };
                 }
             }
@@ -167,7 +188,43 @@ impl App {
         None
     }
 
+    // TODO:
+    // Should Properly handle if a stream is not available.
+    // WARN:
+    // closes a previous stream if open. This is technically overloading this function, but
+    // whatever.
+    pub fn open_stream(&self, channel: &str) {
+        let mut t = self.running_stream.borrow_mut();
+        if let Some(c) = t.as_mut() {
+            c.kill().unwrap();
+        }
+        *t = Some(
+            std::process::Command::new("streamlink")
+                .args([
+                    (String::from("twitch.tv/") + channel).as_str(),
+                    "--default-stream",
+                    "720p, 720p60, best",
+                    "--player",
+                    "mpv",
+                ])
+                .stdout(Stdio::null())
+                .spawn()
+                .expect("Pog"),
+        );
+    }
+
+    // TODO:
+    // This probably sucks
+    pub fn close_stream(&self) {
+        let mut t = self.running_stream.borrow_mut();
+        if let Some(c) = t.as_mut() {
+            c.kill().unwrap();
+        }
+        *t = None;
+    }
+
     pub fn cleanup(&self) {
+        self.close_stream();
         self.storage.borrow().dump_data();
         self.emotes.unload();
     }

@@ -39,7 +39,7 @@ impl FromStr for NormalMode {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, DeserializeFromStr)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, DeserializeFromStr)]
 pub enum State {
     Dashboard,
     Normal,

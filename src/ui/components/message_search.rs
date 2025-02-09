@@ -57,12 +57,12 @@ impl Display for MessageSearchWidget {
     }
 }
 
-impl Component for MessageSearchWidget {
+impl Component<()> for MessageSearchWidget {
     fn draw(&mut self, f: &mut Frame, area: Option<Rect>) {
         self.input.draw(f, area);
     }
 
-    async fn event(&mut self, event: &Event) -> Option<TerminalAction> {
+    async fn event(&mut self, event: &Event) -> Option<TerminalAction<()>> {
         if let Event::Input(key) = event {
             match key {
                 Key::Esc => {

@@ -149,7 +149,7 @@ impl DashboardWidget {
     }
 }
 
-impl Component for DashboardWidget {
+impl Component<TwitchAction> for DashboardWidget {
     fn draw(&mut self, f: &mut Frame, area: Option<Rect>) {
         let r = area.map_or_else(|| f.area(), |a| a);
 
@@ -216,7 +216,7 @@ impl Component for DashboardWidget {
         }
     }
 
-    async fn event(&mut self, event: &Event) -> Option<TerminalAction> {
+    async fn event(&mut self, event: &Event) -> Option<TerminalAction<TwitchAction>> {
         if let Event::Input(key) = event {
             if self.channel_input.is_focused() {
                 return self.channel_input.event(event).await;

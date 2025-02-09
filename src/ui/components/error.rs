@@ -34,7 +34,7 @@ impl ErrorWidget {
     }
 }
 
-impl Component for ErrorWidget {
+impl Component<()> for ErrorWidget {
     fn draw(&mut self, f: &mut Frame, area: Option<Rect>) {
         let r = area.map_or_else(|| f.area(), |a| a);
 

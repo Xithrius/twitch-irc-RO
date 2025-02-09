@@ -22,7 +22,6 @@ use crate::{
         user_input::events::{Event, Key},
     },
     terminal::TerminalAction,
-    twitch::TwitchAction,
     ui::components::{Component, ErrorWidget},
     utils::{
         styles::{NO_COLOR, SEARCH_STYLE, TITLE_STYLE},
@@ -41,9 +40,22 @@ where
     async fn get_items(&mut self) -> Result<Vec<T>>;
 }
 
+pub trait ToQueryString {
+    fn to_query_string(&self) -> String;
+}
+
+// WARN:
+// This prevents other traits from implementing `ToQueryString`, unless we use "specialization".
+// See : https://rust-lang.github.io/rfcs/1210-impl-specialization.html
+// impl<T: ToString> ToQueryString for T {
+//     fn to_query_string(&self) -> String {
+//         self.to_string()
+//     }
+// }
+
 pub struct SearchWidget<T, U>
 where
-    T: ToString + Clone,
+    T: ToString + Clone + ToQueryString,
     U: SearchItemGetter<T>,
 {
     config: SharedCompleteConfig,
@@ -63,7 +75,7 @@ where
 
 impl<T, U> SearchWidget<T, U>
 where
-    T: ToString + Clone,
+    T: ToString + Clone + ToQueryString,
     U: SearchItemGetter<T>,
 {
     pub fn new(
@@ -144,9 +156,9 @@ where
     }
 }
 
-impl<T, U> Component for SearchWidget<T, U>
+impl<T, U> Component<T> for SearchWidget<T, U>
 where
-    T: ToString + Clone,
+    T: ToString + Clone + ToQueryString,
     U: SearchItemGetter<T>,
 {
     fn draw(&mut self, f: &mut Frame, area: Option<Rect>) {
@@ -179,7 +191,7 @@ where
             let mut matched = vec![];
 
             for item in current_items.clone() {
-                let matched_indices = item_filter(item.to_string());
+                let matched_indices = item_filter(item.to_query_string());
 
                 if matched_indices.is_empty() {
                     continue;
@@ -266,7 +278,7 @@ where
         self.search_input.draw(f, Some(input_rect));
     }
 
-    async fn event(&mut self, event: &Event) -> Option<TerminalAction> {
+    async fn event(&mut self, event: &Event) -> Option<TerminalAction<T>> {
         if self.error_widget.is_focused() && matches!(event, Event::Input(Key::Esc)) {
             self.error_widget.toggle_focus();
             self.toggle_focus().await;
@@ -287,22 +299,21 @@ where
                 Key::ScrollUp | Key::Up => self.previous(),
                 Key::Enter => {
                     if let Some(i) = self.list_state.selected() {
-                        let selected_channel = if let Some(v) = self.filtered_items.clone() {
+                        let selected_item = if let Some(v) = self.filtered_items.clone() {
                             if v.is_empty() {
                                 return None;
                             }
 
-                            v.get(i).unwrap().to_string()
+                            v.get(i).unwrap().clone()
                         } else {
-                            self.items.as_ref().unwrap().get(i).unwrap().to_string()
-                        }
-                        .to_lowercase();
+                            self.items.as_ref().unwrap().get(i).unwrap().clone()
+                        };
 
                         self.toggle_focus().await;
 
                         self.unselect();
 
-                        return Some(TerminalAction::Enter(TwitchAction::Join(selected_channel)));
+                        return Some(TerminalAction::Enter(selected_item.clone()));
                     }
                 }
                 _ => {

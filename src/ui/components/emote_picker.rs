@@ -117,7 +117,7 @@ impl EmotePickerWidget {
     }
 }
 
-impl Component for EmotePickerWidget {
+impl Component<TwitchAction> for EmotePickerWidget {
     fn draw(&mut self, f: &mut Frame, area: Option<Rect>) {
         let mut r = area.map_or_else(|| centered_rect(60, 60, 23, f.area()), |a| a);
         // Make sure we have space for the input widget, which has a height of 3.
@@ -253,7 +253,7 @@ impl Component for EmotePickerWidget {
         self.input.draw(f, Some(input_rect));
     }
 
-    async fn event(&mut self, event: &Event) -> Option<TerminalAction> {
+    async fn event(&mut self, event: &Event) -> Option<TerminalAction<TwitchAction>> {
         if let Event::Input(key) = event {
             match key {
                 Key::Esc => self.toggle_focus(),

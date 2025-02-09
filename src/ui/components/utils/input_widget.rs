@@ -129,7 +129,7 @@ impl<T: Clone> Display for InputWidget<T> {
     }
 }
 
-impl<T: Clone> Component for InputWidget<T> {
+impl<T: Clone> Component<()> for InputWidget<T> {
     fn draw(&mut self, f: &mut Frame, area: Option<Rect>) {
         let r = area.map_or_else(|| centered_rect(60, 60, 20, f.area()), |a| a);
 
@@ -227,7 +227,7 @@ impl<T: Clone> Component for InputWidget<T> {
         }
     }
 
-    async fn event(&mut self, event: &Event) -> Option<TerminalAction> {
+    async fn event(&mut self, event: &Event) -> Option<TerminalAction<()>> {
         if let Event::Input(key) = event {
             match key {
                 Key::Ctrl('f') | Key::Right => {

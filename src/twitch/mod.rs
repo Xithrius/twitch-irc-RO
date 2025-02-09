@@ -5,6 +5,7 @@ pub mod oauth;
 
 use std::{collections::HashMap, hash::BuildHasher};
 
+use channels::StreamingUser;
 use color_eyre::Result;
 use futures::StreamExt;
 use irc::{
@@ -119,6 +120,7 @@ pub async fn twitch_irc(
                         if let Err(err) = sender.send_join(&channel_list) {
                             tx.send(data_builder.twitch(err.to_string())).await.unwrap();
                         }
+
 
                         // Set old channel to new channel
                         config.twitch.channel = channel;

@@ -94,6 +94,10 @@ pub struct FiltersConfig {
 pub struct FrontendConfig {
     /// If the time and date is to be shown.
     pub show_datetimes: bool,
+    /// Play stream with `streamlink` upon join a channel.
+    pub auto_start_streamlink: bool,
+    /// Only shows currently streaming channels instead of all following channels
+    pub only_show_live_channels: bool,
     /// The format of string that will show up in the terminal.
     pub datetime_format: String,
     /// If the username should be shown.
@@ -169,6 +173,8 @@ impl Default for FrontendConfig {
     fn default() -> Self {
         Self {
             show_datetimes: true,
+            only_show_live_channels: true,
+            auto_start_streamlink: false,
             datetime_format: "%a %b %e %T %Y".to_string(),
             username_shown: true,
             palette: Palette::default(),

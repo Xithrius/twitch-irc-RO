@@ -56,7 +56,7 @@ impl DebugWidget {
     }
 }
 
-impl Component for DebugWidget {
+impl Component<()> for DebugWidget {
     fn draw(&mut self, f: &mut Frame, area: Option<Rect>) {
         let r = area.map_or_else(|| f.area(), |a| a);
 
@@ -114,7 +114,7 @@ impl Component for DebugWidget {
         f.render_widget(bottom_block, rect);
     }
 
-    async fn event(&mut self, event: &Event) -> Option<TerminalAction> {
+    async fn event(&mut self, event: &Event) -> Option<TerminalAction<()>> {
         if let Event::Input(key) = event {
             match key {
                 Key::Char('q') => return Some(TerminalAction::Quit),
